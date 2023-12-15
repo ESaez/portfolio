@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
 	AppBar,
 	Tab,
@@ -28,12 +28,22 @@ function Main() {
 		setDrawerOpen(!drawerOpen);
 	};
 
+	const aboutRef = useRef();
+	const skillsRef = useRef();
+	const portfolioRef = useRef();
+	const contactRef = useRef();
+
 	const drawerLinks = [
-		{ label: 'About', href: '#about' },
-		{ label: 'Skills', href: '#skills' },
-		{ label: 'Portfolio', href: '#portfolio' },
-		{ label: 'Contact', href: '#contact' },
+		{ label: 'About', href: aboutRef },
+		{ label: 'Skills', href: skillsRef },
+		{ label: 'Portfolio', href: portfolioRef },
+		{ label: 'Contact', href: contactRef },
 	];
+
+	function handleNavigation(ref: any) {
+		ref.current.scrollIntoView({ behavior: 'smooth' });
+		handleDrawerToggle();
+	}
 
 	return (
 		<>
@@ -60,6 +70,7 @@ function Main() {
 						<Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}>
 							<Tabs>
 								<Tab
+									value={0}
 									label="About"
 									href="#about"
 									sx={{
@@ -69,6 +80,7 @@ function Main() {
 									}}
 								/>
 								<Tab
+									value={1}
 									label="Skills"
 									href="#skills"
 									sx={{
@@ -78,6 +90,7 @@ function Main() {
 									}}
 								/>
 								<Tab
+									value={2}
 									label="Portfolio"
 									href="#portfolio"
 									sx={{
@@ -87,6 +100,7 @@ function Main() {
 									}}
 								/>
 								<Tab
+									value={3}
 									label="Contact"
 									href="#contact"
 									sx={{
@@ -107,26 +121,23 @@ function Main() {
 				>
 					<List>
 						{drawerLinks.map((link, index) => (
-							<ListItem
-								key={index}
-								onClick={() => window.location.replace('/' + link.href)}
-							>
+							<ListItem key={index} onClick={() => handleNavigation(link.href)}>
 								<ListItemText primary={link.label} />
 							</ListItem>
 						))}
 					</List>
 				</Drawer>
 				<Landing />
-				<Box id="about" sx={{ mt: { xs: 30, sm: 0 } }}>
+				<Box ref={aboutRef} id="about" sx={{ mt: { xs: 30, sm: 0 } }}>
 					<About />
 				</Box>
-				<Box id="skills">
+				<Box ref={skillsRef} id="skills">
 					<Skills />
 				</Box>
-				<Box id="portfolio">
+				<Box ref={portfolioRef} id="portfolio">
 					<Portfolio />
 				</Box>
-				<Box id="contact">
+				<Box ref={contactRef} id="contact">
 					<Contact />
 				</Box>
 				<Footer />
