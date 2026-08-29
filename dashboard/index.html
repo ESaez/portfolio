@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ApplyPilot — Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ApplyPilot</h1>
+      <p class="subtitle" id="subtitle">Cargando…</p>
+    </header>
+
+    <main>
+      <div class="banner" id="banner" hidden></div>
+
+      <div class="filters" id="filters" hidden>
+        <div class="filter-group">
+          <span class="filter-label" id="score-label">Puntaje</span>
+          <div class="seg" role="group" aria-labelledby="score-label" id="score-filter"></div>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="site-filter">Portal</label>
+          <select id="site-filter"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="search-filter">Buscar</label>
+          <input type="search" id="search-filter" placeholder="título o empresa" />
+        </div>
+        <div class="filter-group">
+          <span class="filter-label" id="shown-count"></span>
+        </div>
+      </div>
+
+      <div id="content" hidden>
+        <div class="grid">
+          <section class="card hero">
+            <div class="hero-label">Postulaciones enviadas</div>
+            <div class="hero-value" id="hero-value">—</div>
+            <div class="hero-foot" id="hero-foot"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h2>Resumen</h2></div>
+            <p class="card-note">Sobre los avisos que pasan el filtro.</p>
+            <div class="tiles" id="tiles"></div>
+          </section>
+        </div>
+
+        <div class="grid">
+          <section class="card">
+            <div class="card-head">
+              <h2>Embudo del pipeline</h2>
+              <button class="table-toggle" data-table="funnel-table" aria-expanded="false">
+                Ver tabla
+              </button>
+            </div>
+            <p class="card-note">Cuántos avisos llegaron a cada etapa.</p>
+            <div id="funnel-chart"></div>
+            <div class="table-wrap" id="funnel-table" hidden></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <h2>Resultado de las postulaciones</h2>
+              <button class="table-toggle" data-table="outcome-table" aria-expanded="false">
+                Ver tabla
+              </button>
+            </div>
+            <p class="card-note">Estado que dejó la etapa 6 en cada intento.</p>
+            <div id="outcome-chart"></div>
+            <div class="legend" id="outcome-legend"></div>
+            <div class="table-wrap" id="outcome-table" hidden></div>
+          </section>
+        </div>
+
+        <div class="grid">
+          <section class="card">
+            <div class="card-head">
+              <h2>Distribución de puntajes</h2>
+              <button class="table-toggle" data-table="score-table" aria-expanded="false">
+                Ver tabla
+              </button>
+            </div>
+            <p class="card-note">Calce estimado de 1 a 10.</p>
+            <div id="score-chart"></div>
+            <div class="table-wrap" id="score-table" hidden></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <h2>Avisos por portal</h2>
+              <button class="table-toggle" data-table="site-table" aria-expanded="false">
+                Ver tabla
+              </button>
+            </div>
+            <p class="card-note">De dónde vienen los avisos encontrados.</p>
+            <div id="site-chart"></div>
+            <div class="table-wrap" id="site-table" hidden></div>
+          </section>
+        </div>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Últimos intentos de postulación</h2>
+          </div>
+          <p class="card-note">
+            Ordenados por el intento más reciente. Cada fila es una corrida de la etapa 6.
+          </p>
+          <div class="table-wrap" id="attempts-table"></div>
+        </section>
+      </div>
+    </main>
+
+    <div id="tooltip" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

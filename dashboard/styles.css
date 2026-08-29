@@ -1,0 +1,459 @@
+/* Tokens de la paleta de referencia. Los valores oscuros se declaran bajo los
+   dos alcances: la media query cubre el ajuste del sistema y [data-theme] el
+   toggle manual, que debe ganar en ambos sentidos. */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --hover-wash: rgba(11, 11, 11, 0.04);
+  --series-1: #2a78d6;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --neutral: #898781;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --hover-wash: rgba(255, 255, 255, 0.06);
+    --series-1: #3987e5;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --hover-wash: rgba(255, 255, 255, 0.06);
+  --series-1: #3987e5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 24px 64px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+header {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 0 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* --- Fila de filtros: una sola, arriba, alcanza a todo lo de abajo. --- */
+.filters {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  margin-bottom: 20px;
+  background: var(--page);
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg button {
+  padding: 6px 12px;
+  border: 0;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button:hover {
+  background: var(--hover-wash);
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--series-1);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+select,
+input[type='search'] {
+  padding: 6px 10px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+input[type='search'] {
+  min-width: 200px;
+}
+
+/* --- Tarjetas --- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-note {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.table-toggle {
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.table-toggle:hover {
+  background: var(--hover-wash);
+  color: var(--text-primary);
+}
+
+/* --- Cifra principal y fichas --- */
+.hero .hero-value {
+  font-size: 52px;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  /* Figuras proporcionales: tabular-nums deja sueltos los numeros grandes. */
+}
+
+.hero .hero-label {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.hero-foot {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.tile-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.tile-value {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.tile-foot {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* --- Graficos --- */
+svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.axis-text {
+  fill: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cat-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+}
+
+.gridline {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.hit {
+  fill: transparent;
+  cursor: default;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.mark {
+  transition: opacity 120ms ease;
+}
+
+.mark.dim {
+  opacity: 0.55;
+}
+
+/* --- Leyenda de estados: color + icono + texto, nunca color solo. --- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* --- Tooltip --- */
+#tooltip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  max-width: 280px;
+}
+
+#tooltip.visible {
+  opacity: 1;
+}
+
+.tt-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.tt-key {
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.tt-extra {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* --- Tablas --- */
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td.wrap {
+  white-space: normal;
+  min-width: 220px;
+}
+
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+a {
+  color: var(--series-1);
+}
+
+.empty {
+  color: var(--text-secondary);
+  padding: 8px 0;
+}
+
+.banner {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--critical);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.banner code {
+  background: var(--hover-wash);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media print {
+  .filters,
+  .table-toggle {
+    display: none;
+  }
+}
