@@ -31,6 +31,10 @@ DEFAULT_DB_PATH = APP_DIR / "applypilot.db"
 
 STATIC_DIR = Path(__file__).resolve().parent
 
+# La carpeta tiene mas cosas que la interfaz (scripts, guia). El servidor
+# entrega solo estos archivos en vez del directorio completo.
+STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/styles.css": "styles.css"}
+
 # Columnas que el dashboard necesita. La tabla `jobs` de ApplyPilot crece por
 # migracion (ensure_columns), asi que una base vieja puede no tenerlas todas:
 # pedimos solo la interseccion con lo que existe de verdad.
@@ -130,9 +134,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     db_path: Path = DEFAULT_DB_PATH
 
     def do_GET(self) -> None:  # noqa: N802  (nombre impuesto por la clase base)
-        if self.path.split("?", 1)[0] == "/api/jobs":
+        route = self.path.split("?", 1)[0]
+        if route == "/api/jobs":
             self.send_json_api()
             return
+        if route not in STATIC_FILES:
+            self.send_error(404, "No encontrado")
+            return
+        self.path = "/" + STATIC_FILES[route]
         super().do_GET()
 
     def send_json_api(self) -> None:
