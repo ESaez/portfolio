@@ -43,7 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MonitorStore.shared.start()
 
         // Test hook used by CI to look at the real window: save an image of it.
-        if let path = ProcessInfo.processInfo.environment["PROCESS_MONITOR_SNAPSHOT"] {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["PROCESS_MONITOR_SNAPSHOT_SCOPE"] == Scope.all.rawValue {
+            MonitorStore.shared.options.scope = .all
+        }
+        if let path = environment["PROCESS_MONITOR_SNAPSHOT"] {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(7))
                 Self.snapshotMainWindow(to: URL(fileURLWithPath: path))

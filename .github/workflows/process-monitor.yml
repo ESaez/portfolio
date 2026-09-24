@@ -71,7 +71,8 @@ jobs:
           # Something busy to show at the top of the CPU tab.
           yes > /dev/null &
           busy=$!
-          PROCESS_MONITOR_SNAPSHOT="$PWD/dist/window.png" "dist/Process Monitor.app/Contents/MacOS/ProcessMonitor" &
+          PROCESS_MONITOR_SNAPSHOT="$PWD/dist/window.png" PROCESS_MONITOR_SNAPSHOT_SCOPE=all \
+            "dist/Process Monitor.app/Contents/MacOS/ProcessMonitor" &
           app=$!
           sleep 11
           kill "$app" "$busy" || true
