@@ -49,7 +49,7 @@ public enum RowID: Hashable, Sendable {
     case member(ProcessKey)
 }
 
-public enum IconRef: Hashable, Sendable {
+public enum RowIcon: Hashable, Sendable {
     /// An app bundle's icon.
     case bundle(String)
     /// The icon macOS shows for an executable file.
@@ -85,7 +85,7 @@ public struct DisplayRow: Identifiable, Equatable, Sendable {
     /// Bar length, 0–1.
     public var barFraction: Double
     public var action: RowAction
-    public var icon: IconRef
+    public var icon: RowIcon
     public var pid: Int32?
     public var path: String?
 
@@ -165,7 +165,7 @@ public enum DisplayBuilder {
             action = .locked(reason)
         }
 
-        let icon: IconRef
+        let icon: RowIcon
         if let bundle = group.bundlePath {
             icon = .bundle(bundle)
         } else if let path = only?.raw.path {
@@ -212,7 +212,7 @@ public enum DisplayBuilder {
             valueText: text(value, metric: metric, approximate: member.isApproximate && metric != .gpu),
             barFraction: 0,
             action: action,
-            icon: member.raw.path.map(IconRef.executable) ?? .generic,
+            icon: member.raw.path.map(RowIcon.executable) ?? .generic,
             pid: member.raw.pid,
             path: member.raw.path)
     }

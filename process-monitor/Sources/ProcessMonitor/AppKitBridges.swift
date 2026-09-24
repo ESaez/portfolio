@@ -47,7 +47,7 @@ final class IconCache {
     static let shared = IconCache()
     private var icons: [String: NSImage] = [:]
 
-    func icon(for reference: IconRef) -> NSImage {
+    func icon(for reference: RowIcon) -> NSImage {
         let key: String
         switch reference {
         case .bundle(let path), .executable(let path): key = path

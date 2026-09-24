@@ -61,12 +61,27 @@ jobs:
           test "$(lipo -archs "dist/Process Monitor.app/Contents/MacOS/ProcessMonitor")" = "arm64"
       - name: Launch smoke test
         run: |
+          # Something busy to show at the top of the CPU tab.
+          yes > /dev/null &
+          busy=$!
           open -n "dist/Process Monitor.app"
-          sleep 8
+          sleep 12
           pgrep -x ProcessMonitor
+          screencapture -x dist/screenshot.png || echo "screenshot not allowed on this runner"
           pkill -x ProcessMonitor
+          kill "$busy"
+      - name: Print a small screenshot for reviewing the UI from the log
+        continue-on-error: true
+        run: |
+          sips --cropToHeightWidth 760 1000 dist/screenshot.png --out dist/screenshot-crop.png > /dev/null
+          sips -s format jpeg -s formatOptions 45 dist/screenshot-crop.png --out dist/screenshot.jpg > /dev/null
+          echo "SCREENSHOT-BEGIN"
+          base64 -b 100 -i dist/screenshot.jpg
+          echo "SCREENSHOT-END"
       - uses: actions/upload-artifact@v4
         with:
           name: ProcessMonitor-app
-          path: process-monitor/dist/ProcessMonitor.zip
+          path: |
+            process-monitor/dist/ProcessMonitor.zip
+            process-monitor/dist/screenshot.png
           retention-days: 14

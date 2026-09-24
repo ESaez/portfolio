@@ -110,7 +110,7 @@ struct Sparkline: View {
         }
     }
 
-    private func points(in size: CGSize) -> [CGPoint] {
+    private func plot(in size: CGSize) -> [CGPoint] {
         guard values.count > 1 else { return [] }
         let step = size.width / CGFloat(values.count - 1)
         return values.enumerated().map { index, value in
@@ -121,7 +121,7 @@ struct Sparkline: View {
 
     private func line(in size: CGSize) -> Path {
         Path { path in
-            let points = points(in: size)
+            let points = plot(in: size)
             guard let first = points.first else { return }
             path.move(to: first)
             for point in points.dropFirst() { path.addLine(to: point) }
@@ -130,7 +130,7 @@ struct Sparkline: View {
 
     private func area(in size: CGSize) -> Path {
         Path { path in
-            let points = points(in: size)
+            let points = plot(in: size)
             guard let first = points.first, let last = points.last else { return }
             path.move(to: CGPoint(x: first.x, y: size.height))
             for point in points { path.addLine(to: point) }
