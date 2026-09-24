@@ -45,11 +45,11 @@ public final class HostStatsSource: SystemStatsSource, @unchecked Sendable {
         }
         guard result == KERN_SUCCESS, totalMemory > 0 else { return nil }
 
-        let internal = UInt64(statistics.internal_page_count)
+        let internalPages = UInt64(statistics.internal_page_count)
         let purgeable = UInt64(statistics.purgeable_count)
-        let appPages = internal > purgeable ? internal - purgeable : 0
+        let appPages = internalPages > purgeable ? internalPages - purgeable : 0
         let usedPages = appPages + UInt64(statistics.wire_count) + UInt64(statistics.compressor_page_count)
-        let level = MonitorDarwin.sysctlInt32("kern.memorystatus_vm_pressure_level").map(Int.init) ?? 0
+        let level = MonitorDarwin.sysctlInt32("kern.memorystatus_vm_pressure_level").map { Int($0) } ?? 0
         return MemoryReading(
             totalBytes: totalMemory,
             usedBytes: min(usedPages * pageSize, totalMemory),

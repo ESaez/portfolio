@@ -72,6 +72,6 @@ public enum PathClassifier {
 
     /// The last path component.
     public static func basename(_ path: String) -> String {
-        path.split(separator: "/", omittingEmptySubsequences: true).last.map(String.init) ?? path
+        path.split(separator: "/", omittingEmptySubsequences: true).last.map { String($0) } ?? path
     }
 }
