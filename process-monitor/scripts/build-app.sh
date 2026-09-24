@@ -30,6 +30,13 @@ cp "$BIN_DIR/ProcessMonitor" "$APP/Contents/MacOS/ProcessMonitor"
 sed -e "s/__VERSION__/${VERSION}/" -e "s/__BUILD__/${BUILD}/" Support/Info.plist >"$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
+# The app icon is drawn by a script; the app works fine without it.
+ICONSET=".build/AppIcon.iconset"
+rm -rf "$ICONSET"
+if ! { swift scripts/make-icon.swift "$ICONSET" && iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"; }; then
+	echo "warning: couldn't draw the app icon; continuing without it" >&2
+fi
+
 codesign --force --sign "$IDENTITY" --timestamp=none "$APP"
 codesign --verify --strict "$APP"
 

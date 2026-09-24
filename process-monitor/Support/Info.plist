@@ -8,6 +8,8 @@
 	<string>Process Monitor</string>
 	<key>CFBundleExecutable</key>
 	<string>ProcessMonitor</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.esaez.ProcessMonitor</string>
 	<key>CFBundleInfoDictionaryVersion</key>

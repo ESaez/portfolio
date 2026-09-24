@@ -247,7 +247,12 @@ final class MonitorStore {
     private func apply(_ new: Snapshot) {
         history.append(new.totals)
         guard new.includesProcesses else {
-            snapshot?.totals = new.totals
+            // Totals-only refresh (window hidden): keep the last process list.
+            if snapshot == nil {
+                snapshot = new
+            } else {
+                snapshot?.totals = new.totals
+            }
             return
         }
         snapshot = new
