@@ -220,7 +220,7 @@ public enum DisplayBuilder {
     static func metricValue(_ group: ProcessGroup, _ metric: Metric) -> Double? {
         switch metric {
         case .cpu: group.cpuPercent
-        case .memory: group.memoryBytes.map(Double.init)
+        case .memory: group.memoryBytes.map { Double($0) }
         case .gpu: group.gpuPercent
         }
     }
@@ -228,7 +228,7 @@ public enum DisplayBuilder {
     static func metricValue(_ process: ProcessStats, _ metric: Metric) -> Double? {
         switch metric {
         case .cpu: process.cpuPercent
-        case .memory: process.memoryBytes.map(Double.init)
+        case .memory: process.memoryBytes.map { Double($0) }
         case .gpu: process.gpuPercent
         }
     }
