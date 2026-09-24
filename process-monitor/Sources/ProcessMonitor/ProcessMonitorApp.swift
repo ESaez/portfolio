@@ -41,6 +41,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.activate()
         MonitorStore.shared.start()
+
+        // Test hook used by CI to look at the real window: save an image of it.
+        if let path = ProcessInfo.processInfo.environment["PROCESS_MONITOR_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(7))
+                Self.snapshotMainWindow(to: URL(fileURLWithPath: path))
+            }
+        }
+    }
+
+    /// Draws the main window (title bar and toolbar included) into a PNG. An app may
+    /// always capture its own windows, so this needs no screen-recording permission.
+    static func snapshotMainWindow(to url: URL) {
+        let window =
+            NSApp.windows.first { $0.identifier?.rawValue.hasPrefix(MainWindow.id) == true && $0.isVisible }
+            ?? NSApp.windows.first { $0.isVisible && $0.styleMask.contains(.titled) }
+        guard let content = window?.contentView else { return }
+        let view = content.superview ?? content
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try? bitmap.representation(using: .png, properties: [:])?.write(to: url)
     }
 
     /// Keep running in the menu bar after the window closes, unless the icon is off.
