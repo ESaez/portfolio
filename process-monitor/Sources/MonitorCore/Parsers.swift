@@ -34,10 +34,14 @@ public enum InterpreterHint {
     ]
     static let maximumLength = 40
 
+    /// True for executables whose arguments are worth reading (node, python3.12, …).
+    public static func isInterpreter(_ executableName: String) -> Bool {
+        let name = executableName.lowercased()
+        return interpreters.contains(name) || name.hasPrefix("python")
+    }
+
     public static func hint(for arguments: [String]) -> String? {
-        guard let first = arguments.first else { return nil }
-        let executable = PathClassifier.basename(first).lowercased()
-        guard interpreters.contains(executable) || executable.hasPrefix("python") else { return nil }
+        guard let first = arguments.first, isInterpreter(PathClassifier.basename(first)) else { return nil }
 
         var words: [String] = []
         var index = 1
