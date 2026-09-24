@@ -1,0 +1,72 @@
+name: Process Monitor
+
+on:
+  push:
+    paths:
+      - "process-monitor/**"
+      - ".github/workflows/process-monitor.yml"
+  pull_request:
+    paths:
+      - "process-monitor/**"
+      - ".github/workflows/process-monitor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: process-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: process-monitor
+
+jobs:
+  core-linux:
+    name: Core logic (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Swift version
+        run: swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+
+  macos:
+    name: App (macOS arm64)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+      - name: Build
+        run: swift build --build-tests
+      - name: Test
+        run: swift test
+      - name: Bundle the app
+        run: ./scripts/build-app.sh
+      - name: Check the bundle
+        run: |
+          plutil -lint "dist/Process Monitor.app/Contents/Info.plist"
+          codesign --verify --strict --verbose=2 "dist/Process Monitor.app"
+          test "$(lipo -archs "dist/Process Monitor.app/Contents/MacOS/ProcessMonitor")" = "arm64"
+      - name: Launch smoke test
+        run: |
+          open -n "dist/Process Monitor.app"
+          sleep 8
+          pgrep -x ProcessMonitor
+          pkill -x ProcessMonitor
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProcessMonitor-app
+          path: process-monitor/dist/ProcessMonitor.zip
+          retention-days: 14
