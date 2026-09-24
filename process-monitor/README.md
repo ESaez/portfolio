@@ -42,6 +42,18 @@ System Settings → Privacy & Security), or run
 For development, you can also run `swift run ProcessMonitor` or open
 `Package.swift` in Xcode, and run the tests with `swift test`.
 
+## Shortcuts
+
+| Keys | Action |
+|---|---|
+| ⌘1 / ⌘2 / ⌘3 | CPU, Memory or GPU tab |
+| ⌘⌫ | Quit the selected row (asks first unless you turned that off) |
+| ⌥⌘⌫ | Force quit the selected row (always asks) |
+| ⌘R | Refresh now |
+| ⌘, | Settings: refresh interval, confirmation, menu bar icon and CPU % |
+
+Right-click a row for **Show in Finder**, **Copy PID** and **Copy Path**.
+
 ## What can be quit
 
 The app never asks for administrator rights. That alone means macOS won't let it

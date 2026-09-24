@@ -77,7 +77,7 @@ jobs:
           sleep 11
           kill "$app" "$busy" || true
           sips -Z 760 -s format jpeg -s formatOptions 40 dist/window.png --out dist/window.jpg > /dev/null
-          ls -l dist/window.png dist/window.jpg
+          ls -l dist/window.png dist/window.jpg "dist/Process Monitor.app/Contents/Resources"
           echo "SNAPSHOT-BEGIN"
           base64 -b 100 -i dist/window.jpg
           echo "SNAPSHOT-END"
