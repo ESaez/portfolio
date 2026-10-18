@@ -121,7 +121,7 @@ class RenderTests(unittest.TestCase):
         for aspect, (w, h) in zip(result["aspects"], [(1080, 1920), (1920, 1080)]):
             final = Path(aspect["final"])
             self.assertTrue(final.exists(), aspect)
-            self.assertEqual(final.parent, self.tmp / "deliver")
+            self.assertEqual(final.parent, (self.tmp / "deliver").resolve())   # macOS: /var is /private/var
             self.assertEqual(final.name, f"Test_Edit_{aspect['aspect'].replace(':', 'x')}_{w}x{h}.mp4")
             self.assertEqual(dims(final), (w, h))
             self.assertAlmostEqual(duration(final), 8.0, delta=0.35, msg=aspect)
@@ -171,7 +171,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(aspect["canvas"], "540x540")
         self.assertAlmostEqual(aspect["expected_duration_s"], 9.5, places=2)
         final = Path(aspect["final"])
-        self.assertEqual(final.parent, folder / "out")
+        self.assertEqual(final.parent, (folder / "out").resolve())
         self.assertEqual(dims(final), (540, 540))
         self.assertAlmostEqual(duration(final), 9.5, delta=0.35, msg=aspect)
         self.assertNotIn("mixed", aspect)
