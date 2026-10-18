@@ -333,8 +333,9 @@ def render(src: Path, in_point: float, duration: float, frames: list[dict], widt
     cmd = [ffmpeg_bin(), "-hide_banner", "-nostdin", "-y", "-loglevel", "verbose" if uses_sendcmd else "error"]
     if hwaccel and platform.system() == "Darwin":
         cmd += ["-hwaccel", "videotoolbox"]
+    # The graph is passed inline (FFmpeg 9 dropped -filter_complex_script); the file is kept for debugging.
     cmd += ["-ss", f"{in_point:.6f}", "-t", f"{duration:.6f}", "-i", str(src.resolve()),
-            "-filter_complex_script", graph_name, "-map", "[v]", "-map", "0:a?",
+            "-filter_complex", graph, "-map", "[v]", "-map", "0:a?",
             *video_args, "-pix_fmt", "yuv420p", *audio_args, "-movflags", "+faststart", str(out.resolve())]
     result = {"size": f"{width}x{height}", "path": str(out), "kind": kind, "d_fov": [round(d, 2) for d in d_fovs],
               "fov_h_v": [tuple(round(v, 1) for v in horizontal_vertical_fov(d, width, height)) for d in d_fovs],
