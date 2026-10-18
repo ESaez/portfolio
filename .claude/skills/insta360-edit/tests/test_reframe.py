@@ -112,8 +112,11 @@ class KeyframeMathTests(unittest.TestCase):
 
     def test_failed_command_detection(self):
         log = "x\n[Parsed_sendcmd_0] Command reply for command #0: ret:Success res:\n" \
-              "[Parsed_sendcmd_0] Command reply for command #1: ret:Numerical result out of range res:\n"
-        self.assertEqual(len(rf.check_command_replies(log)), 1)
+              "[Parsed_sendcmd_0] Command reply for command #0: ret:Undefined error: 0 res:\n" \
+              "[Parsed_sendcmd_0] Command reply for command #1: ret:Numerical result out of range res:\n" \
+              "[Parsed_sendcmd_0] Command reply for command #1: ret:Result too large res:\n"
+        self.assertEqual(len(rf.check_command_replies(log)), 2)
+        self.assertEqual(rf.count_successful_replies(log), 2)
 
 
 @needs_ffmpeg

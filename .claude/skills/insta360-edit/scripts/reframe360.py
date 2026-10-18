@@ -303,9 +303,19 @@ def parse_output(spec: str) -> tuple[int, int, Path]:
     return width, height, Path(path.strip()).expanduser()
 
 
+# ffmpeg prints the command result through the C library's strerror(), so a success reads
+# "Success" on Linux but "Undefined error: 0" on macOS.
+SUCCESS_REPLIES = ("ret:Success", "ret:Undefined error: 0", "ret:No error")
+
+
 def check_command_replies(stderr: str) -> list[str]:
     """Lines of failed sendcmd commands (ffmpeg only reports them at verbose level)."""
-    return [line.strip() for line in stderr.splitlines() if "Command reply" in line and "ret:Success" not in line]
+    return [line.strip() for line in stderr.splitlines()
+            if "Command reply" in line and not any(ok in line for ok in SUCCESS_REPLIES)]
+
+
+def count_successful_replies(stderr: str) -> int:
+    return sum(1 for line in stderr.splitlines() if "Command reply" in line and any(ok in line for ok in SUCCESS_REPLIES))
 
 
 def render(src: Path, in_point: float, duration: float, frames: list[dict], width: int, height: int, out: Path,
@@ -355,7 +365,7 @@ def render(src: Path, in_point: float, duration: float, frames: list[dict], widt
         if failed:
             raise ToolError(f"{len(failed)} camera commands were rejected by ffmpeg, e.g. {failed[0]}",
                             kind="command_rejected", failed=failed[:5])
-        result["commands_ok"] = proc.stderr.count("ret:Success")
+        result["commands_ok"] = count_successful_replies(proc.stderr)
     info = probe(out)
     result["duration_s"] = round(duration_of(info), 3)
     if is_preview:
