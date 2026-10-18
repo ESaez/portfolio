@@ -43,25 +43,45 @@ OS="$(uname -s)"
 [ "$OS" = "Darwin" ] || WITH_VISION=0
 
 # --- ffmpeg ------------------------------------------------------------------------------
-if [ "$USE_BREW" = 1 ] && [ "$OS" = "Darwin" ]; then
+# Homebrew's plain `ffmpeg` has no drawtext (no freetype); `ffmpeg-full` has everything but is
+# keg-only, i.e. not on PATH. The scripts look for it in /opt/homebrew/opt/ffmpeg-full/bin first.
+NEEDED_FILTERS="v360 sendcmd xfade acrossfade drawtext drawgrid hstack tile loudnorm sidechaincompress ebur128"
+ffmpeg_ok() {  # $1 = ffmpeg binary: has every filter we need and libx264?
+	[ -x "$1" ] || return 1
+	local filters; filters="$("$1" -hide_banner -filters 2>/dev/null | awk '{print $2}')"
+	for f in $NEEDED_FILTERS; do printf '%s\n' "$filters" | grep -qx "$f" || return 1; done
+	"$1" -hide_banner -encoders 2>/dev/null | awk '{print $2}' | grep -qx libx264
+}
+find_ffmpeg() {
+	local c
+	for c in "${FFMPEG:-}" /opt/homebrew/opt/ffmpeg-full/bin/ffmpeg /usr/local/opt/ffmpeg-full/bin/ffmpeg \
+	         "$(command -v ffmpeg 2>/dev/null || true)" /opt/homebrew/bin/ffmpeg; do
+		[ -n "$c" ] && ffmpeg_ok "$c" && { echo "$c"; return 0; }
+	done
+	return 1
+}
+
+FFMPEG_BIN="$(find_ffmpeg || true)"
+if [ -z "$FFMPEG_BIN" ] && [ "$USE_BREW" = 1 ] && [ "$OS" = "Darwin" ]; then
 	BREW="$(command -v brew || true)"
 	[ -z "$BREW" ] && [ -x /opt/homebrew/bin/brew ] && BREW=/opt/homebrew/bin/brew
 	[ -z "$BREW" ] && fail "Homebrew is not installed. Get it from https://brew.sh and run this again."
-	if ! command -v ffmpeg >/dev/null 2>&1 && ! [ -x /opt/homebrew/bin/ffmpeg ]; then
-		say "Installing ffmpeg with Homebrew (this takes a few minutes)"
-		"$BREW" install ffmpeg
-	fi
-	case ":$PATH:" in *":/opt/homebrew/bin:"*) ;; *) export PATH="/opt/homebrew/bin:$PATH" ;; esac
+	say "Installing ffmpeg-full with Homebrew (the plain ffmpeg formula lacks text drawing; this takes a few minutes)"
+	"$BREW" install ffmpeg-full
+	FFMPEG_BIN="$(find_ffmpeg || true)"
 fi
-command -v ffmpeg >/dev/null 2>&1 || fail "ffmpeg is not on PATH (macOS: brew install ffmpeg; Linux: apt install ffmpeg)"
-command -v ffprobe >/dev/null 2>&1 || fail "ffprobe is not on PATH"
-
-say "Checking ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}')"
-FILTERS="$(ffmpeg -hide_banner -filters 2>/dev/null | awk '{print $2}')"
-for f in v360 sendcmd xfade acrossfade drawtext drawgrid hstack tile loudnorm sidechaincompress ebur128; do
-	printf '%s\n' "$FILTERS" | grep -qx "$f" || fail "this ffmpeg build lacks the '$f' filter; install Homebrew's ffmpeg"
-done
-ffmpeg -hide_banner -encoders 2>/dev/null | awk '{print $2}' | grep -qx libx264 || fail "this ffmpeg build lacks libx264"
+if [ -z "$FFMPEG_BIN" ]; then
+	if command -v ffmpeg >/dev/null 2>&1; then
+		fail "the ffmpeg on PATH lacks a needed filter or libx264 (needs: $NEEDED_FILTERS). macOS: brew install ffmpeg-full; Linux: apt install ffmpeg"
+	fi
+	fail "ffmpeg is not installed (macOS: brew install ffmpeg-full; Linux: apt install ffmpeg)"
+fi
+FFPROBE_BIN="$(dirname "$FFMPEG_BIN")/ffprobe"
+[ -x "$FFPROBE_BIN" ] || FFPROBE_BIN="$(command -v ffprobe || true)"
+[ -n "$FFPROBE_BIN" ] || fail "ffprobe is missing next to $FFMPEG_BIN"
+export FFMPEG="$FFMPEG_BIN" FFPROBE="$FFPROBE_BIN"
+export PATH="$(dirname "$FFMPEG_BIN"):$PATH"
+say "Using ffmpeg $("$FFMPEG_BIN" -version 2>/dev/null | head -1 | awk '{print $3}') at $FFMPEG_BIN"
 
 # --- python --------------------------------------------------------------------------------
 PY="$(command -v python3 || true)"

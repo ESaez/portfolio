@@ -27,14 +27,24 @@ class ToolError(Exception):
         self.details = details
 
 
+# Homebrew's plain `ffmpeg` formula has no drawtext (no freetype); `ffmpeg-full` has it but is
+# keg-only, so it never appears on PATH. Prefer it when it is installed.
+FFMPEG_FULL_DIRS = ("/opt/homebrew/opt/ffmpeg-full/bin", "/usr/local/opt/ffmpeg-full/bin")
+
+
 def ffmpeg_bin(name: str = "ffmpeg") -> str:
-    """Path of ffmpeg/ffprobe: $FFMPEG / $FFPROBE override, else whatever is on PATH."""
+    """Path of ffmpeg/ffprobe: $FFMPEG / $FFPROBE override, else Homebrew's ffmpeg-full, else PATH."""
     override = os.environ.get(name.upper())
     if override:
         return override
+    for directory in FFMPEG_FULL_DIRS:
+        candidate = Path(directory) / name
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
     found = shutil.which(name)
     if not found:
-        raise ToolError(f"{name} is not installed or not on PATH (brew install ffmpeg)", kind="missing_tool", tool=name)
+        raise ToolError(f"{name} is not installed or not on PATH (brew install ffmpeg-full)", kind="missing_tool",
+                        tool=name)
     return found
 
 

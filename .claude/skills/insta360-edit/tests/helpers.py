@@ -72,16 +72,21 @@ def run_script(name: str, *args: str, cwd: Path | None = None, check: bool = Tru
         raise AssertionError(f"{name} printed no JSON:\nstdout: {proc.stdout[-2000:]}\nstderr: {proc.stderr[-2000:]}")
 
 
+BLOCK = 4  # pixels; averaging a small block smooths compression noise
+
+
 def rgb_at(video: Path, seconds: float, x_frac: float = 0.5, y_frac: float = 0.5) -> tuple[float, float, float]:
-    """Average of a 2×2 block at a fractional position of the frame at `seconds`, as 0–1 RGB."""
+    """Average of a BLOCK×BLOCK square at a fractional position of the frame at `seconds`, as 0–1 RGB."""
     out = subprocess.run(
         [ffmpeg_bin(), "-v", "error", "-ss", f"{seconds:.4f}", "-i", str(video), "-frames:v", "1",
-         "-vf", f"crop=2:2:floor(iw*{x_frac})-1:floor(ih*{y_frac})-1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+         "-vf", f"crop={BLOCK}:{BLOCK}:floor(iw*{x_frac})-{BLOCK // 2}:floor(ih*{y_frac})-{BLOCK // 2}",
+         "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
         capture_output=True, check=True).stdout
-    if len(out) < 12:
+    count = BLOCK * BLOCK
+    if len(out) < count * 3:
         raise AssertionError(f"no frame at {seconds}s in {video}")
-    pixels = [out[i:i + 3] for i in range(0, 12, 3)]
-    return tuple(sum(p[k] for p in pixels) / 4 / 255 for k in range(3))  # type: ignore[return-value]
+    pixels = [out[i:i + 3] for i in range(0, count * 3, 3)]
+    return tuple(sum(p[k] for p in pixels) / count / 255 for k in range(3))  # type: ignore[return-value]
 
 
 def hsv_at(video: Path, seconds: float, x_frac: float = 0.5, y_frac: float = 0.5) -> tuple[float, float, float]:

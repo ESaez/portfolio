@@ -45,10 +45,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
-      - name: Install ffmpeg
+      - name: Install ffmpeg-full (the plain formula has no drawtext)
         run: |
-          brew install ffmpeg
-          ffmpeg -version | head -1
+          brew install ffmpeg-full
+          /opt/homebrew/opt/ffmpeg-full/bin/ffmpeg -version | head -1
       - name: Install the skills
         run: ./install.sh --no-brew
       - name: Tests
