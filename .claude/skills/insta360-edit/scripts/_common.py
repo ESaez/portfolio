@@ -49,12 +49,12 @@ def ffmpeg_bin(name: str = "ffmpeg") -> str:
 
 
 def run(cmd: list[str], *, capture: bool = True, check: bool = True, cwd: str | Path | None = None,
-        timeout: float | None = None) -> subprocess.CompletedProcess:
+        timeout: float | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
     """Run a command with arguments passed as a list (never through a shell)."""
     if os.environ.get("INSTA360_VERBOSE"):
         log(" ".join(_quote(part) for part in cmd[:12]) + (" …" if len(cmd) > 12 else ""))
     started = time.monotonic()
-    proc = subprocess.run(cmd, capture_output=capture, text=True, cwd=cwd, timeout=timeout)
+    proc = subprocess.run(cmd, capture_output=capture, text=True, cwd=cwd, timeout=timeout, env=env)
     elapsed = time.monotonic() - started
     if check and proc.returncode != 0:
         tail = (proc.stderr or "")[-2000:]

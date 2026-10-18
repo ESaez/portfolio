@@ -34,6 +34,7 @@ from _common import SKILL_DIR, ToolError, duration_of, ffmpeg_bin, log, main_wra
 
 TILE_YAWS = (-90.0, 0.0, 90.0, 180.0)
 PERSON_KINDS = ("human", "face")
+SALIENCY_MAX_AREA = 0.5     # a salient region bigger than half the view is the view, not a subject
 
 
 # --- geometry -----------------------------------------------------------------------------------
@@ -351,6 +352,10 @@ class VisionDetector:
                 conf = float(observation.confidence()) if hasattr(observation, "confidence") else 1.0
                 x, y = float(box.origin.x), float(box.origin.y)
                 w, h = float(box.size.width), float(box.size.height)
+                # Saliency always answers, even on an empty frame: a region covering most of the
+                # view is "the view", not a subject, so it is not a detection.
+                if kind == "saliency" and w * h > SALIENCY_MAX_AREA:
+                    continue
                 found.append({"kind": kind, "u": x + w / 2.0, "v": 1.0 - (y + h / 2.0), "w": w, "h": h,
                               "conf": conf})
         return found
@@ -445,7 +450,10 @@ def main() -> dict:
         if ok:
             detector = VisionDetector(want_saliency=True)
             blank = bytes(64 * 64 * 3)
-            result["blank_frame_detections"] = len(detector.detect(blank, 64, 64))
+            counts = {"human": 0, "face": 0, "animal": 0, "saliency": 0}
+            for found in detector.detect(blank, 64, 64):
+                counts[found["kind"]] = counts.get(found["kind"], 0) + 1
+            result["blank_frame_detections"] = counts
         return result
 
     duration = None

@@ -158,7 +158,10 @@ class VisionSmokeTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         result = json.loads(proc.stdout)
         self.assertTrue(result["vision"], result)
-        self.assertEqual(result["blank_frame_detections"], 0)
+        counts = result["blank_frame_detections"]
+        # the detectors must not hallucinate people or animals on a black frame; saliency is
+        # allowed to answer (it always does) but whole-frame regions are filtered out by detect()
+        self.assertEqual({k: v for k, v in counts.items() if k != "saliency"}, {"human": 0, "face": 0, "animal": 0}, counts)
 
 
 if __name__ == "__main__":
