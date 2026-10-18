@@ -1,0 +1,55 @@
+name: insta360-edit skill
+
+on:
+  push:
+    paths:
+      - ".claude/skills/insta360-edit/**"
+      - ".github/workflows/insta360-edit.yml"
+  pull_request:
+    paths:
+      - ".claude/skills/insta360-edit/**"
+      - ".github/workflows/insta360-edit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: insta360-edit-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: .claude/skills/insta360-edit
+
+jobs:
+  linux:
+    name: Scripts (Linux, apt ffmpeg)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg fonts-dejavu-core
+          ffmpeg -version | head -1
+      - name: Install the skills
+        run: ./install.sh --no-brew --no-vision
+      - name: Tests
+        run: python3 -m unittest discover -s tests -v
+
+  macos:
+    name: Scripts (macOS, Homebrew ffmpeg)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ffmpeg
+        run: |
+          brew install ffmpeg
+          ffmpeg -version | head -1
+      - name: Install the skills
+        run: ./install.sh --no-brew
+      - name: Tests
+        run: python3 -m unittest discover -s tests -v
