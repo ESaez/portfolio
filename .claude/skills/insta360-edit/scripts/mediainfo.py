@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """List and classify media files: 360 video, flat video, photo, audio, or Insta360 raw files.
 
-  mediainfo.py FOLDER_OR_FILE [...] [--recursive] [--json-only]
+  mediainfo.py FOLDER_OR_FILE [...] [--recursive] [--json-only] [--sort time|name]
 
 A video counts as 360 when ffprobe reports spherical metadata (what Insta360 Studio writes on
 its equirectangular exports) or when its frame is 2:1 and at least 1024 px wide. Rotated phone
 videos report their display size (after the rotation flag), so portrait clips show as portrait.
-Nothing is modified.
+Every item has `created` (the file's creation_time metadata when it has one, else its
+modification time, UTC) and the list is in shooting order unless --sort name. Nothing is modified.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -51,8 +53,33 @@ def rotation_of(stream: dict) -> int:
         return 0
 
 
+def iso_utc(moment: datetime) -> str:
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def created_at(info: dict | None, path: Path) -> tuple[str, str]:
+    """(ISO 8601 UTC, where it came from): creation_time metadata if present, else the file's mtime."""
+    tags = ((info or {}).get("format") or {}).get("tags") or {}
+    for key in ("creation_time", "com.apple.quicktime.creationdate", "date", "DateTimeOriginal"):
+        value = tags.get(key)
+        if not value:
+            continue
+        text = str(value).strip().replace("Z", "+00:00")
+        try:
+            return iso_utc(datetime.fromisoformat(text)), f"metadata {key}"
+        except ValueError:
+            try:
+                return iso_utc(datetime.strptime(text[:19], "%Y:%m:%d %H:%M:%S")), f"metadata {key}"
+            except ValueError:
+                continue
+    return iso_utc(datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)), "file mtime"
+
+
 def describe(path: Path) -> dict:
     item = {"path": str(path), "name": path.name, "size_mb": round(path.stat().st_size / 1e6, 1)}
+    item["created"], item["created_from"] = created_at(None, path)
     ext = path.suffix.lower()
     if ext in INSTA360_RAW_EXT:
         item.update(type="insta360-raw", reason="raw Insta360 file: export it from Insta360 Studio as a 360 MP4/JPG first")
@@ -73,6 +100,7 @@ def describe(path: Path) -> dict:
         return item
     stream = video_stream(info)
     audio = audio_stream(info)
+    item["created"], item["created_from"] = created_at(info, path)
     item["duration_s"] = round(duration_of(info), 3)
     if audio:
         item["audio"] = {"codec": audio.get("codec_name"), "channels": audio.get("channels"),
@@ -111,19 +139,24 @@ def main() -> dict:
     parser.add_argument("paths", nargs="+")
     parser.add_argument("--recursive", action="store_true")
     parser.add_argument("--json-only", action="store_true", help="no table on stderr")
+    parser.add_argument("--sort", choices=["time", "name"], default="time",
+                        help="shooting order (default) or file name order")
     args = parser.parse_args()
 
     items = [describe(path) for path in collect(args.paths, args.recursive)]
     items = [i for i in items if i["type"] != "other"]
+    if args.sort == "time":
+        items.sort(key=lambda i: (i["created"], i["name"]))
     if not args.json_only:
         for item in items:
             size = f"{item.get('width', '')}x{item.get('height', '')}" if item.get("width") else ""
             dur = f"{item['duration_s']:.1f}s" if item.get("duration_s") else ""
-            log(f"{item['type']:<13} {item['name']:<40} {size:<10} {dur:<8} {item.get('reason', '')}")
-    summary = {}
+            log(f"{item['created'][:16]} {item['type']:<13} {item['name']:<40} {size:<10} {dur:<8} {item.get('reason', '')}")
+    summary: dict = {}
     for item in items:
         summary[item["type"]] = summary.get(item["type"], 0) + 1
-    return {"ok": True, "items": items, "summary": summary}
+    summary["order"] = [item["name"] for item in items]
+    return {"ok": True, "items": items, "summary": summary, "sorted_by": args.sort}
 
 
 if __name__ == "__main__":

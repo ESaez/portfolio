@@ -45,8 +45,8 @@ FlowState and horizon lock on; see `references/insta360-export.md`.
 
 | Script | Job |
 |---|---|
-| `mediainfo.py` | probe a folder: 360 / video / photo / audio, durations, frame rates |
-| `scout.py` | yaw/pitch-gridded frames, four flat views and contact sheets of a 360 clip |
+| `mediainfo.py` | probe a folder: 360 / video / photo / audio, durations, frame rates, shooting order |
+| `scout.py` | yaw/pitch-gridded frames, four flat views, contact sheets and an exposure map (sun, clean horizon) of a 360 clip |
 | `reframe360.py` | keyframed virtual camera → flat 16:9 / 9:16 / 1:1 / 4:5 clip; preview mode with overlay |
 | `track360.py` | Apple Vision person / face / animal detection on four flat views → smoothed follow keyframes |
 | `render_project.py` | `project.json` → cached intermediates → join → music duck → loudness → masters |
@@ -74,6 +74,6 @@ and macOS (Homebrew ffmpeg-full, with the Vision smoke test) in
 SKILL.md                 what Claude does
 install.sh               installer
 scripts/                 the tools above (+ _common.py)
-references/              Insta360 export settings, project.json schema, camera moves
+references/              Insta360 export settings, project.json schema, camera moves, free music, Mac session prompt
 tests/                   unittest suite
 ```

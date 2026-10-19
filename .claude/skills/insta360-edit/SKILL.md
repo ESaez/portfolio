@@ -41,10 +41,11 @@ python3 $SKILL/scripts/mediainfo.py . --recursive
 ```
 
 Prints a table (stderr) and JSON: for each file its type (`360`, `video`, `photo`, `audio`,
-`insta360-raw`), duration, size, frame rate, audio. A video is `360` when it carries
-spherical metadata or is exactly 2:1 and at least 1024 px wide. Summarize this for the user
-and confirm which files belong in the edit and in what order (default: chronological by file
-name, music underneath everything).
+`insta360-raw`), duration, size, frame rate, audio, and `created` (creation-time metadata or
+the file's modification time). The list and `summary.order` are in shooting order. A video is
+`360` when it carries spherical metadata or is exactly 2:1 and at least 1024 px wide.
+Summarize this for the user and confirm which files belong in the edit and in what order
+(default: shooting order, music underneath everything).
 
 ### 2. Scout each 360 clip
 
@@ -61,6 +62,13 @@ in `index.json`:
   pointed), +90 is to the right, −90 to the left, ±180 behind.
 - **pitch** = 90 − y / height × 180 → 0 is the horizon, +30 looks up, −30 looks down.
 - One grid cell is 30°. The view strip shows what a 100° flat camera sees in each direction.
+
+The result also carries an **exposure map**, one entry per sample in `exposure`: `sun` is the
+most blown-out 30° cell (yaw, pitch, fraction of clipped pixels; `null` when nothing is blown
+out), `clean_yaw_ranges` are the yaw sectors whose horizon band is neither blown out nor dark,
+and `note` says both in words. `index.json` has the full 6×12 grid of `clipped` and `mean`
+luma per cell. Use it to keep glare out of frame: aim inside a clean range, and keep the camera
+at least fov/2 away from the `sun` cell unless a silhouette or flare is wanted.
 
 For a long clip, sample more often around interesting moments (`--times 12,15,18`) and use
 `--in/--to` to limit the range. Decide for each clip: the in/out points (ffprobe-style
@@ -134,9 +142,45 @@ ffmpeg -v error -i deliver/NAME_16x9_1920x1080.mp4 -vf "fps=1,scale=-2:180,tile=
 ### 6. Deliver
 
 Tell the user the two file paths, the duration, that loudness is −14 LUFS (fine for every
-platform), and offer the obvious follow-ups: a different music, re-timing a shot, captions
-(ffmpeg-skill `caption.py`), a colour look (`color.py` / `look.py`), platform exports
-(`export.py --preset reels|youtube`).
+platform), where the music came from and its licence (`deliver/CREDITS.txt`, see
+`references/free-music.md`), and offer the obvious follow-ups: a different music, re-timing a
+shot, captions (ffmpeg-skill `caption.py`), a colour look (`color.py` / `look.py`), platform
+exports (`export.py --preset reels|youtube`).
+
+## Applying a brief
+
+Users describe the film they want in a sentence or two. Turn it into shot choices like this:
+
+- **"Focus on the scenery"**: open and close wide (fov 100–110), slow pans (≤ 20°/s) or
+  holds of 4–8 s, horizon level, pitch −5 to −10 so the ground anchors the frame. Choose the
+  direction from the scout grid and the exposure map's `clean_yaw_ranges`; the most
+  photogenic direction is usually the one with depth (a path, a shoreline, a ridge) and no
+  blown-out sky. Let scenery breathe: fewer, longer shots.
+- **"The two people" / named subjects**: before scouting video, Read the photos in the folder
+  to learn what each person looks like (clothes, hair, height, who is usually on which side).
+  Find them on the scout views, then use `track360.py` on the segments where they are doing
+  something (walking in, turning, laughing), `--target person-largest` or `--hint` at the
+  direction you saw them. Give each person at least one shot of their own (fov 70–85, framed
+  slightly above centre) and the pair at least one shot together (fov 85–95). A 360 clip can
+  be used twice: once for the place, once for the people.
+- **"Not so much glare"**: prefer sample times where the horizon band is not clipped (the
+  `note` says "no blown-out direction"); when the sun is in the sphere, keep it behind the
+  camera or at least fov/2 outside the frame, aim slightly down rather than up, and skip
+  clips whose every direction is washed out. Flat phone clips with a white sky: crop below it
+  with `anchor.y` 0.6–0.7 instead of discarding the clip.
+- **Length**: 2–3 minutes means roughly 25–40 shots at 4–8 s each; a 60–90 s film has
+  10–15. Keep the best 20 % of the material and never show the same place twice in a row.
+- **Structure that works**: opener (tiny-planet or reveal of the main place, 4–6 s) →
+  establishing scenery (2–3 wide shots) → the people arrive / do things (follows and two-shots)
+  → scenery intercut with photos (Ken Burns, 3–4 s each, the people's photos among them) →
+  the pair together at the most beautiful spot → closing pull-out or a slow pan into the
+  sunset/sky. Cut on the music's phrases (most tracks change every 8 or 16 s).
+- **Music**: pick it after scouting, so the mood fits (calm cinematic for landscapes, warm
+  acoustic for people), from the free sources in `references/free-music.md`; download, check
+  the licence, write `deliver/CREDITS.txt`, and let the user hear it in the preview.
+
+Write the resulting decisions into `edit-work/project.json` and show the user the shot list
+in plain words before rendering.
 
 ## Defaults you should use unless told otherwise
 
@@ -149,6 +193,7 @@ platform), and offer the obvious follow-ups: a different music, re-timing a shot
 | Loudness | −14 LUFS, −1 dBTP | `output.lufs` |
 | Portrait framing | same diagonal as the 16:9 shot (`portrait_zoom` 1.0) | 1.15–1.25 for a tighter 9:16 when subjects look small |
 | Photo | 4 s, slow zoom in 1.2×, no pan | `kenburns` |
+| Clip order | shooting order from `mediainfo.py` | reorder for the story if it helps |
 
 ## Troubleshooting
 

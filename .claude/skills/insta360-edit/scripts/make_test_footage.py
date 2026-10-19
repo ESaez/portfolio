@@ -12,12 +12,16 @@ frame can be checked numerically:
 Audio on the 360 clip is a 440 Hz tone that is on for one second and off for one second,
 standing in for speech when testing music ducking.
 
-  make_test_footage.py OUTDIR [--size 960x480] [--fps 15] [--seconds 8] [--drift 22.5] [--only equi]
+  make_test_footage.py OUTDIR [--size 960x480] [--fps 15] [--seconds 8] [--drift 22.5] [--only equi] [--sun 75,15]
+
+--sun YAW,PITCH paints a pure white disc of SUN_RADIUS degrees in that direction, standing in
+for a blown-out sun when testing the exposure map.
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -25,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import ffmpeg_bin, main_wrapper, probe, run, video_stream  # noqa: E402
 
 DEFAULT_DRIFT = 22.5  # degrees of hue per second = a full turn every 16 s
+SUN_RADIUS = 12.0     # degrees
 
 
 def hue_to_rgb_expressions(hue_expr: str, value_expr: str) -> dict[str, str]:
@@ -37,19 +42,33 @@ def hue_to_rgb_expressions(hue_expr: str, value_expr: str) -> dict[str, str]:
     }
 
 
-def equirect_filter(drift: float) -> str:
+def sun_mask(yaw: float, pitch: float, radius: float = SUN_RADIUS) -> str:
+    """geq expression that is 1 inside a disc of `radius` degrees around (yaw, pitch), else 0."""
+    pixel_yaw = "((X/W)*2*PI-PI)"
+    pixel_pitch = "(PI/2-(Y/H)*PI)"
+    sun_yaw, sun_pitch = math.radians(yaw), math.radians(pitch)
+    cos_distance = (f"(sin({pixel_pitch})*{math.sin(sun_pitch):.6f}+cos({pixel_pitch})*{math.cos(sun_pitch):.6f}"
+                    f"*cos({pixel_yaw}-{sun_yaw:.6f}))")
+    return f"gt({cos_distance},{math.cos(math.radians(radius)):.6f})"
+
+
+def equirect_filter(drift: float, sun: tuple[float, float] | None = None) -> str:
     hue = f"mod(X/W*360+{drift}*T,360)"
     value = "0.45+0.55*(1-Y/H)"
     rgb = hue_to_rgb_expressions(hue, value)
+    if sun is not None:
+        mask = sun_mask(*sun)
+        rgb = {channel: f"if({mask},255,{expr})" for channel, expr in rgb.items()}
     return f"geq=r='{rgb['r']}':g='{rgb['g']}':b='{rgb['b']}'"
 
 
-def make_equirect(out: Path, width: int, height: int, fps: float, seconds: float, drift: float) -> None:
+def make_equirect(out: Path, width: int, height: int, fps: float, seconds: float, drift: float,
+                  sun: tuple[float, float] | None = None) -> None:
     run([
         ffmpeg_bin(), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
         "-f", "lavfi", "-i", f"color=c=black:s={width}x{height}:r={fps}:d={seconds}",
         "-f", "lavfi", "-i", f"aevalsrc=0.3*sin(440*2*PI*t)*gt(mod(t\\,2)\\,1):s=48000:d={seconds}",
-        "-filter_complex", f"[0:v]{equirect_filter(drift)},format=yuv420p[v]",
+        "-filter_complex", f"[0:v]{equirect_filter(drift, sun)},format=yuv420p[v]",
         "-map", "[v]", "-map", "1:a", "-c:v", "libx264", "-crf", "8", "-preset", "veryfast",
         "-c:a", "aac", "-b:a", "128k", "-shortest", str(out),
     ])
@@ -90,7 +109,15 @@ def main() -> dict:
     parser.add_argument("--drift", type=float, default=DEFAULT_DRIFT, help="hue drift in degrees per second (0 = static)")
     parser.add_argument("--only", choices=["equi", "flat", "photo", "music"], action="append",
                         help="generate only these (default: all)")
+    parser.add_argument("--sun", help="YAW,PITCH of a white disc painted on the 360 clip (default: none)")
     args = parser.parse_args()
+    sun = None
+    if args.sun:
+        try:
+            sun_yaw, sun_pitch = (float(v) for v in args.sun.split(","))
+        except ValueError:
+            raise SystemExit("--sun must be YAW,PITCH in degrees, e.g. 75,15")
+        sun = (sun_yaw, sun_pitch)
 
     width, height = (int(v) for v in args.size.lower().split("x"))
     if width != 2 * height or width % 2 or height % 2:
@@ -102,7 +129,7 @@ def main() -> dict:
     files: dict[str, str] = {}
     if "equi" in wanted:
         path = outdir / "equi.mp4"
-        make_equirect(path, width, height, args.fps, args.seconds, args.drift)
+        make_equirect(path, width, height, args.fps, args.seconds, args.drift, sun)
         files["equi"] = str(path)
     if "flat" in wanted:
         path = outdir / "flat.mp4"
@@ -117,7 +144,8 @@ def main() -> dict:
         make_music(path, max(args.seconds * 3, 20))
         files["music"] = str(path)
 
-    report = {"ok": True, "files": files, "drift_deg_per_s": args.drift, "fps": args.fps, "seconds": args.seconds}
+    report = {"ok": True, "files": files, "drift_deg_per_s": args.drift, "fps": args.fps, "seconds": args.seconds,
+              "sun": list(sun) if sun else None}
     if "equi" in files:
         stream = video_stream(probe(files["equi"])) or {}
         report["equi_size"] = f"{stream.get('width')}x{stream.get('height')}"

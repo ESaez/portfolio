@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Scout frames of a 360 video so Claude can pick camera directions.
 
-  scout.py SRC --outdir DIR [--every 5 | --times 0,3.5,8] [--in 0 --to 30] [--views] [--thumbs] [--width 1600]
+  scout.py SRC --outdir DIR [--every 5 | --times 0,3.5,8] [--in 0 --to 30] [--views] [--thumbs] [--width 1600] [--no-exposure]
 
 Writes, per sample time:
   grid_<t>.png   the whole sphere (equirectangular) with a 30° yaw/pitch grid and labels.
                  Reading it: yaw = x / width * 360 - 180 (0 at the centre, + to the right),
                  pitch = 90 - y / height * 180 (horizon in the middle, + up). One cell is 30°.
   views_<t>.png  (--views) four flat 100° views looking at yaw -90, 0, 90, 180.
+  exposure       (in index.json and the result) per 30° cell the fraction of blown-out pixels
+                 and the mean brightness; `sun` is the most clipped cell, `clean_yaw_ranges`
+                 the yaw sectors whose horizon band is neither blown out nor dark.
 and with --thumbs, contact sheets of the whole clip (one frame every --every seconds).
 index.json lists everything. Nothing is modified.
 """
@@ -16,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,6 +29,13 @@ from _common import ToolError, duration_of, ffmpeg_bin, log, main_wrapper, parse
 MAX_SAMPLES = 40
 MAX_THUMBS = 100
 VIEW_YAWS = (-90, 0, 90, 180)
+CELL_COLS, CELL_ROWS = 12, 6          # the 30° grid of the scout images
+SAMPLE_W, SAMPLE_H = 72, 36           # the frame is downscaled to this before measuring (6x6 px per cell)
+CLIP_LUMA = 235                       # a pixel at or above this is "blown out"
+SUN_MIN_CLIPPED = 0.25                # a cell this clipped is the sun (or a lamp, or the sky's glare)
+CLEAN_MAX_CLIPPED = 0.02
+CLEAN_MEAN_RANGE = (50, 200)          # mean luma of a usable horizon cell: not black, not washed out
+HORIZON_ROWS = (2, 3)                 # pitch +30..0 and 0..-30
 
 
 def has_filter(name: str) -> bool:
@@ -86,6 +97,68 @@ def png_size(path: Path) -> tuple[int, int]:
     return int(stream.get("width", 0)), int(stream.get("height", 0))
 
 
+def cell_centre(col: int, row: int) -> tuple[int, int]:
+    """(yaw, pitch) at the centre of a grid cell; col 0 is yaw -180..-150, row 0 is pitch 90..60."""
+    return -180 + 30 * col + 15, 90 - 30 * row - 15
+
+
+def luma_cells(gray: bytes) -> list[list[dict]]:
+    """clipped fraction and mean luma per 30° cell of a SAMPLE_W x SAMPLE_H grayscale frame."""
+    block_w, block_h = SAMPLE_W // CELL_COLS, SAMPLE_H // CELL_ROWS
+    cells = []
+    for row in range(CELL_ROWS):
+        line = []
+        for col in range(CELL_COLS):
+            values = [gray[(row * block_h + j) * SAMPLE_W + col * block_w + i] for j in range(block_h) for i in range(block_w)]
+            line.append({"clipped": round(sum(v >= CLIP_LUMA for v in values) / len(values), 3),
+                         "mean": round(sum(values) / len(values), 1)})
+        cells.append(line)
+    return cells
+
+
+def analyse_cells(cells: list[list[dict]]) -> dict:
+    """The sun cell (if any) and the yaw sectors whose horizon band is usable."""
+    brightest = max(((cells[r][c]["clipped"], r, c) for r in range(CELL_ROWS) for c in range(CELL_COLS)),
+                    key=lambda item: item[0])
+    sun = None
+    if brightest[0] >= SUN_MIN_CLIPPED:
+        yaw, pitch = cell_centre(brightest[2], brightest[1])
+        sun = {"yaw": yaw, "pitch": pitch, "clipped": brightest[0]}
+    clean = []
+    for col in range(CELL_COLS):
+        band = [cells[row][col] for row in HORIZON_ROWS]
+        clean.append(all(cell["clipped"] < CLEAN_MAX_CLIPPED and CLEAN_MEAN_RANGE[0] <= cell["mean"] <= CLEAN_MEAN_RANGE[1]
+                         for cell in band))
+    ranges = []
+    col = 0
+    while col < CELL_COLS:
+        if clean[col]:
+            start = col
+            while col < CELL_COLS and clean[col]:
+                col += 1
+            ranges.append([-180 + 30 * start, -180 + 30 * col])
+        else:
+            col += 1
+    if sun:
+        note = f"sun at yaw {sun['yaw']:+d} pitch {sun['pitch']:+d} ({sun['clipped']:.0%} clipped)"
+    else:
+        note = "no blown-out direction"
+    note += "; clean horizon yaw " + (", ".join(f"{a:+d}..{b:+d}" for a, b in ranges) if ranges else "none")
+    return {"sun": sun, "clean_yaw_ranges": ranges, "note": note}
+
+
+def exposure_map(src: Path, seconds: float) -> dict:
+    """One downscaled grayscale frame at `seconds`, measured per 30° cell."""
+    cmd = [ffmpeg_bin(), "-hide_banner", "-nostdin", "-loglevel", "error", "-ss", f"{seconds:.3f}", "-i", str(src.resolve()),
+           "-frames:v", "1", "-vf", f"scale={SAMPLE_W}:{SAMPLE_H}:flags=area,format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0 or len(proc.stdout) < SAMPLE_W * SAMPLE_H:
+        raise ToolError(f"exposure sample at {seconds:.2f}s failed: {proc.stderr.decode(errors='replace')[-500:]}",
+                        kind="command_failed")
+    cells = luma_cells(proc.stdout[:SAMPLE_W * SAMPLE_H])
+    return {"cells": cells, **analyse_cells(cells)}
+
+
 def main() -> dict:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("src")
@@ -97,6 +170,7 @@ def main() -> dict:
     parser.add_argument("--views", action="store_true", help="also write four flat views per sample")
     parser.add_argument("--thumbs", action="store_true", help="also write contact sheets of the whole clip")
     parser.add_argument("--width", type=int, default=1600, help="grid image width (default 1600)")
+    parser.add_argument("--no-exposure", action="store_true", help="skip the per-cell exposure measurement")
     args = parser.parse_args()
 
     src = Path(args.src).expanduser()
@@ -138,6 +212,7 @@ def main() -> dict:
 
     width = max(400, args.width // 2 * 2)
     index = []
+    exposure = []
     for seconds in times:
         tag = f"{seconds:07.2f}".replace(".", "_")
         grid = outdir / f"grid_{tag}.png"
@@ -149,7 +224,14 @@ def main() -> dict:
             extract(src, seconds, views_graph(seconds, with_text), views, work)
             w, h = png_size(views)
             index.append({"kind": "views", "t": seconds, "file": str(views), "width": w, "height": h, "yaws": list(VIEW_YAWS)})
-        log(f"scouted t={seconds:.2f}s")
+        if not args.no_exposure:
+            measured = exposure_map(src, seconds)
+            index.append({"kind": "exposure", "t": seconds, **measured})
+            exposure.append({"t": seconds, "sun": measured["sun"], "clean_yaw_ranges": measured["clean_yaw_ranges"],
+                             "note": measured["note"]})
+            log(f"scouted t={seconds:.2f}s: {measured['note']}")
+        else:
+            log(f"scouted t={seconds:.2f}s")
 
     if args.thumbs:
         # One quick seek per thumbnail (decoding a whole 5.7K file just to drop frames is slow),
@@ -175,7 +257,7 @@ def main() -> dict:
     (outdir / "index.json").write_text(json.dumps(index, indent=2))
     return {"ok": True, "src": str(src), "duration": round(total, 3), "samples": times, "labels": with_text,
             "reading": "yaw = x/width*360-180 (+right), pitch = 90-y/height*180 (+up); one cell = 30°",
-            "index": str(outdir / "index.json"), "items": index, "warnings": warnings}
+            "exposure": exposure, "index": str(outdir / "index.json"), "items": index, "warnings": warnings}
 
 
 if __name__ == "__main__":

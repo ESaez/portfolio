@@ -49,6 +49,26 @@ def fixtures() -> dict:
     return _fixture_paths()
 
 
+SUN_FIXTURE_PARAMS = {"size": "480x240", "fps": 15.0, "seconds": 2.0, "drift": 0.0, "sun": "75,15"}
+
+
+def sun_fixture() -> Path:
+    """A static 2 s sphere with a white disc at yaw 75, pitch 15 (for the exposure map)."""
+    folder = FIXTURE_DIR / "sun"
+    stamp = folder / "params.json"
+    out = folder / "equi.mp4"
+    if stamp.exists() and json.loads(stamp.read_text()) == SUN_FIXTURE_PARAMS and out.exists():
+        return out
+    folder.mkdir(parents=True, exist_ok=True)
+    p = SUN_FIXTURE_PARAMS
+    subprocess.run(
+        [PYTHON, str(SCRIPTS / "make_test_footage.py"), str(folder), "--only", "equi", "--size", p["size"],
+         "--fps", str(p["fps"]), "--seconds", str(p["seconds"]), "--drift", str(p["drift"]), "--sun", p["sun"]],
+        check=True, capture_output=True, text=True)
+    stamp.write_text(json.dumps(SUN_FIXTURE_PARAMS))
+    return out
+
+
 def _fixture_paths() -> dict:
     return {
         "equi": FIXTURE_DIR / "equi.mp4",
